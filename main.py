@@ -7,7 +7,6 @@ import pathlib
 
 import click
 import dlt
-import duckdb
 import environ
 from dlt.sources.rest_api import rest_api_source
 
@@ -27,28 +26,12 @@ INSTITUION_CODE = env("INSTITUTION_CODE", default="7511.0.0.0")
 
 
 @click.command()
-@click.option("--incremental", is_flag=True)
-def start(incremental) -> None:
-    incremental_resource = {}
-
-    if incremental:
-        con = duckdb.connect(DUCKDB_NAME + ".duckdb")
-        result = con.execute(
-            "select modified_date from nva.resources order by modified_date asc limit 1"
-        ).fetchone()
-        con.close()
-
-        if last_date := len(result) and result[0]:
-            incremental_resource = {
-                "incremental": {
-                    "cursor_path": "modifiedDate",
-                    "initial_value": last_date.isoformat(),
-                },
-                "params": {
-                    "modified_since": "{incremental.start_value}",
-                },
-            }
-
+@click.option("--resources", is_flag=True)
+@click.option("--projects", is_flag=True)
+@click.option("--persons", is_flag=True)
+@click.option("--categories", is_flag=True)
+@click.option("--funding_sources", is_flag=True)
+def start(resources, projects, persons, categories, funding_sources) -> None:
     source = rest_api_source(
         {
             "client": {
@@ -58,29 +41,61 @@ def start(incremental) -> None:
                     "next_url_path": "nextResults",
                 },
             },
-            "resources": [
-                {
-                    "name": "resources",
-                    "endpoint": {
-                        "path": "search/resources",
-                        "data_selector": "hits",
-                        "params": {
-                            "institution": INSTITUION_CODE,
-                        },
-                    }
-                    | incremental_resource,  # merge incremental settings
-                },
-                {
-                    "name": "projects",
-                    "endpoint": {
-                        "path": "cristin/project",
-                        "data_selector": "hits",
-                        "params": {
-                            "organization": f"{BASE_URL}/cristin/organization/{INSTITUION_CODE}",  # noqa: E501
-                        },
-                    },
-                },
-            ],
+            "resources": list(
+                filter(
+                    lambda r: r is not None,
+                    [
+                        {
+                            "name": "resources",
+                            "endpoint": {
+                                "path": "search/resources",
+                                "data_selector": "hits",
+                                "params": {
+                                    "institution": INSTITUION_CODE,
+                                },
+                            },
+                        }
+                        if resources
+                        else None,
+                        {
+                            "name": "projects",
+                            "endpoint": {
+                                "path": f"cristin/organization/{INSTITUION_CODE}/projects",  # noqa: E501
+                                "data_selector": "hits",
+                            },
+                        }
+                        if projects
+                        else None,
+                        {
+                            "name": "persons",
+                            "endpoint": {
+                                "path": f"cristin/organization/{INSTITUION_CODE}/persons",  # noqa: E501
+                                "data_selector": "hits",
+                            },
+                        }
+                        if persons
+                        else None,
+                        {
+                            "name": "categories",
+                            "endpoint": {
+                                "path": "cristin/category/project",
+                                "data_selector": "hits",
+                            },
+                        }
+                        if categories
+                        else None,
+                        {
+                            "name": "funding_sources",
+                            "endpoint": {
+                                "path": "cristin/funding-sources",
+                                "data_selector": "hits",
+                            },
+                        }
+                        if funding_sources
+                        else None,
+                    ],
+                )
+            ),
         }
     )
 
