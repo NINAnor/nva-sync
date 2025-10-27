@@ -21,7 +21,7 @@ logging.basicConfig(level=(logging.DEBUG if DEBUG else logging.INFO))
 
 logger = logging.getLogger(__name__)
 
-BASE_URL = env("BASE_URL")
+BASE_URL = env("BASE_URL", default="https://api.test.nva.aws.unit.no/")
 DUCKDB_NAME = env("DUCKDB_FILE_NAME", default="nva_sync")
 INSTITUION_CODE = env("INSTITUTION_CODE", default="7511.0.0.0")
 
