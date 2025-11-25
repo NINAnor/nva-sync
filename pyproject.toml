@@ -4,10 +4,8 @@ authors = [{ name = "ninanor", email = "niccolo.cantu@nina.no" }]
 # PEP 621 project metadata
 # See https://www.python.org/dev/peps/pep-0621/
 dependencies = [
-  "better-exceptions>=0.3.3",
-  "click>=8.3.0",
   "django-environ",
-  "dlt>=1.17.1",
+  "dlt[filesystem,parquet,s3]>=1.17.1",
   "duckdb>=1.4.1",
   "numpy>=2.2.6",
   "pandas>=2.3.3",

@@ -1,14 +1,30 @@
 import dlt
 import typer
+from dlt.destinations.impl.filesystem.factory import filesystem
+from dlt.sources.credentials import AwsCredentials
 from dlt.sources.rest_api import rest_api_source
 
-from .settings import UBW_BASE_URL, UBW_BASIC_AUTH, log
+from .settings import (
+    UBW_ACCESS_KEY,
+    UBW_AWS_ENDPOINT,
+    UBW_BASE_URL,
+    UBW_BASIC_AUTH,
+    UBW_BUCKET,
+    UBW_PREFIX,
+    UBW_SECRET_KEY,
+    log,
+)
 
 app = typer.Typer()
 
 
 @app.command()
 def run(
+    access_key: str = UBW_ACCESS_KEY,
+    secret_key: str = UBW_SECRET_KEY,
+    endpoint_url: str = UBW_AWS_ENDPOINT,
+    bucket: str = UBW_BUCKET,
+    prefix: str = UBW_PREFIX,
     base_url: str = UBW_BASE_URL,
     auth: str = UBW_BASIC_AUTH,
 ):
@@ -55,13 +71,26 @@ def run(
         }
     )
 
-    pipeline = dlt.pipeline(
-        pipeline_name="ubw",
-        destination="duckdb",
-        dataset_name="main",
+    credentials = AwsCredentials(
+        s3_url_style="path",
+        endpoint_url=endpoint_url,
+        aws_secret_access_key=secret_key,
+        aws_access_key_id=access_key,
     )
 
-    log.info(pipeline.run(source))
+    pipeline = dlt.pipeline(
+        pipeline_name="ubw",
+        destination=filesystem(
+            bucket_url=f"s3://{bucket}/" + prefix,
+            credentials=credentials,
+            layout="{table_name}.{ext}",
+        ),
+        dataset_name="ubw",
+    )
+
+    log.info(
+        pipeline.run(source, loader_file_format="parquet", write_disposition="replace")
+    )
 
 
 if __name__ == "__main__":

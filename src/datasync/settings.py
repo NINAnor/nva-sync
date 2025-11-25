@@ -21,5 +21,10 @@ NVA_INSTITUION_CODE = env("NVA_INSTITUTION_CODE", default="7511.0.0.0")
 
 # UBW
 UBW_BASE_URL = env("UBW_BASE_URL", default="")
-UBW_DUCKDB_NAME = env("UBW_DUCKDB_FILE_NAME", default="ubw_sync")
 UBW_BASIC_AUTH = env("UBW_BASIC_AUTH", default="")
+
+UBW_ACCESS_KEY = env("UBW_ACCESS_KEY", default="")
+UBW_SECRET_KEY = env("UBW_SECRET_KEY", default="")
+UBW_AWS_ENDPOINT = env("UBW_AWS_ENDPOINT", default="")
+UBW_BUCKET = env("UBW_BUCKET", default="")
+UBW_PREFIX = env("UBW_PREFIX", default="")
