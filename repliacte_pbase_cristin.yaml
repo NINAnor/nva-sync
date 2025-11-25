@@ -1,0 +1,43 @@
+source: PBASE
+target: pbase_duck_local
+
+defaults:
+  mode: full-refresh
+
+streams:
+  dbo.Cristin:
+    object: main.Cristin
+    # ignore the "Timestamp" column? What is it?
+    select:
+      - PubID
+      - Tittel
+      - Publiseringsaar
+      - DatoRegistrert
+      - DatoEndret
+      - Kategori
+      - url
+      - KategoriNavn
+      - Underkategori
+      - Rapportserie
+      - Tidsskrift
+      - TidsskriftNiva
+      - hefte
+      - volum
+      - sider
+      - issn
+      - ForedragArr
+      - Foredragdato
+      - Authors
+      - Skjul
+      - Featured
+      - Tekst
+      - Eier
+      - DateLastModified
+      - isbn
+      - Forlag
+      - BokNiva
+      - Referanse
+      - doi
+      - TilPubliste
+      - Utgiver
+      - sprak
