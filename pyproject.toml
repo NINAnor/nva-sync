@@ -26,6 +26,7 @@ version = "0.1.0"
 
 [project.scripts]
 nva_sync = "datasync.nva:app"
+ubw_sync = "datasync.ubw:app"
 datasync = "datasync.main:app"
 
 [dependency-groups]

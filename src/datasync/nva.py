@@ -8,7 +8,7 @@ app = typer.Typer()
 
 
 @app.command()
-def nva(
+def run(
     resources: bool = False,
     projects: bool = False,
     persons: bool = False,

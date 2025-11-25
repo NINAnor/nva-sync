@@ -4,10 +4,11 @@
 
 import typer
 
-from . import nva
+from . import nva, ubw
 
 app = typer.Typer()
-app.add(nva.app)
+app.add_typer(nva.app, name="nva")
+app.add_typer(ubw.app, name="ubw")
 
 if __name__ == "__main__":
     app()
