@@ -7,38 +7,38 @@ The following table shows how data fields are mapped from the NVA API to the Cri
 | Cristin DB Field | NVA API Source |
 |------------------|----------------|
 | `PubID` | `None` (auto-generated) |
-| `Tittel` | `publication.entityDescription.mainTitle` |
-| `Publiseringsaar` | `publication.entityDescription.publicationDate.year` |
-| `DatoRegistrert` | `publication.createdDate` (formatted for SQL) |
-| `DatoEndret` | `publication.modifiedDate` (formatted for SQL) |
-| `Kategori` | `publication.entityDescription.reference.publicationContext.type` |
-| `URL` | `publication.id` |
-| `KategoriNavn` | `publication.entityDescription.reference.publicationContext.name` |
+| `Tittel` | `entityDescription.mainTitle` |
+| `Publiseringsaar` | `entityDescription.publicationDate.year` |
+| `DatoRegistrert` | `createdDate` |
+| `DatoEndret` | `modifiedDate` |
+| `Kategori` | `entityDescription.reference.publicationContext.type` |
+| `URL` | `id` |
+| `KategoriNavn` | `entityDescription.reference.publicationContext.name` |
 | `Underkategori` | `None` |
 | `Rapportserie` | `None` |
-| `Tidsskrift` | `publication.entityDescription.reference.publicationContext.journal` |
+| `Tidsskrift` | `entityDescription.reference.publicationContext.journal` |
 | `TidsskriftNiva` | `None` |
 | `hefte` | `None` |
-| `volum` | `publication.entityDescription.reference.publicationInstance.volume` (safely extracted) |
-| `sider` | `publication.entityDescription.reference.publicationInstance.pages` |
-| `issn` | `publication.entityDescription.reference.publicationContext.issn` |
+| `volum` | `entityDescription.reference.publicationInstance.volume` (safely extracted) |
+| `sider` | `entityDescription.reference.publicationInstance.pages` |
+| `issn` | `entityDescription.reference.publicationContext.issn` |
 | `ForedragArr` | `None` |
 | `Foredragsdato` | `None` |
 | `Authors` | `None` |
 | `Skjul` | `None` |
 | `Featured` | `None` |
 | `Timestamp` | `None` |
-| `Tekst` | `publication.entityDescription.abstract` |
-| `Eier` | `publication.resourceOwner.owner` |
-| `DateLastModified` | `publication.modifiedDate` (formatted for SQL) |
-| `isbn` | `publication.entityDescription.reference.publicationInstance.isbn` |
-| `Forlag` | `publication.entityDescription.reference.publicationContext.publisher` |
+| `Tekst` | `entityDescription.abstract` |
+| `Eier` | `resourceOwner.owner` |
+| `DateLastModified` | `modifiedDate` (formatted for SQL) |
+| `isbn` | `entityDescription.reference.publicationInstance.isbn` |
+| `Forlag` | `entityDescription.reference.publicationContext.publisher` |
 | `BokNiva` | `None` |
-| `Referanse` | `publication.entityDescription.reference.publicationInstance.reference` |
-| `doi` | `publication.entityDescription.reference.publicationInstance.doi` |
+| `Referanse` | `entityDescription.reference.publicationInstance.reference` |
+| `doi` | `entityDescription.reference.publicationInstance.doi` |
 | `TilPubliste` | `None` |
-| `Utgiver` | `publication.publisher.id` |
-| `sprak` | `publication.entityDescription.language` (mapped to language codes) |
+| `Utgiver` | `publisher.id` |
+| `sprak` | `entityDescription.language` (mapped to language codes) |
 
 ### Language Code Mapping
 
