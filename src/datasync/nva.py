@@ -1,41 +1,27 @@
-#!/usr/bin/env python3
-
-"""Main script."""
-
-import logging
-import pathlib
-
-import click
 import dlt
-import environ
+import typer
 from dlt.sources.rest_api import rest_api_source
 
-env = environ.Env()
-BASE_DIR = pathlib.Path(__file__).parent
-environ.Env.read_env(str(BASE_DIR / ".env"))
+from .settings import NVA_BASE_URL, NVA_DUCKDB_NAME, NVA_INSTITUION_CODE, log
 
-DEBUG = env.bool("DEBUG", default=False)
-
-logging.basicConfig(level=(logging.DEBUG if DEBUG else logging.INFO))
-
-logger = logging.getLogger(__name__)
-
-BASE_URL = env("BASE_URL", default="https://api.test.nva.aws.unit.no/")
-DUCKDB_NAME = env("DUCKDB_FILE_NAME", default="nva_sync")
-INSTITUION_CODE = env("INSTITUTION_CODE", default="7511.0.0.0")
+app = typer.Typer()
 
 
-@click.command()
-@click.option("--resources", is_flag=True)
-@click.option("--projects", is_flag=True)
-@click.option("--persons", is_flag=True)
-@click.option("--categories", is_flag=True)
-@click.option("--funding_sources", is_flag=True)
-def start(resources, projects, persons, categories, funding_sources) -> None:
+@app.command()
+def nva(
+    resources: bool = False,
+    projects: bool = False,
+    persons: bool = False,
+    categories: bool = False,
+    funding_sources: bool = False,
+    base_url: str = NVA_BASE_URL,
+    duckdb_name: str = NVA_DUCKDB_NAME,
+    institution_code: str = NVA_INSTITUION_CODE,
+):
     source = rest_api_source(
         {
             "client": {
-                "base_url": BASE_URL,
+                "base_url": base_url,
                 "paginator": {
                     "type": "json_link",
                     "next_url_path": "nextResults",
@@ -51,7 +37,7 @@ def start(resources, projects, persons, categories, funding_sources) -> None:
                                 "path": "search/resources",
                                 "data_selector": "hits",
                                 "params": {
-                                    "institution": INSTITUION_CODE,
+                                    "institution": institution_code,
                                 },
                             },
                         }
@@ -60,7 +46,7 @@ def start(resources, projects, persons, categories, funding_sources) -> None:
                         {
                             "name": "projects",
                             "endpoint": {
-                                "path": f"cristin/organization/{INSTITUION_CODE}/projects",  # noqa: E501
+                                "path": f"cristin/organization/{institution_code}/projects",  # noqa: E501
                                 "data_selector": "hits",
                             },
                         }
@@ -69,7 +55,7 @@ def start(resources, projects, persons, categories, funding_sources) -> None:
                         {
                             "name": "persons",
                             "endpoint": {
-                                "path": f"cristin/organization/{INSTITUION_CODE}/persons",  # noqa: E501
+                                "path": f"cristin/organization/{institution_code}/persons",  # noqa: E501
                                 "data_selector": "hits",
                             },
                         }
@@ -100,14 +86,13 @@ def start(resources, projects, persons, categories, funding_sources) -> None:
     )
 
     pipeline = dlt.pipeline(
-        pipeline_name=DUCKDB_NAME,
+        pipeline_name=duckdb_name,
         destination="duckdb",
         dataset_name="main",
     )
 
-    load_info = pipeline.run(source)
-    print(load_info)
+    log.info(pipeline.run(source))
 
 
 if __name__ == "__main__":
-    start()
+    app()

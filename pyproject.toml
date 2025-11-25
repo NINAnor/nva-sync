@@ -1,34 +1,35 @@
 
 [project]
-authors = [
-  {name = "ninanor", email = "niccolo.cantu@nina.no"}
-]
+authors = [{ name = "ninanor", email = "niccolo.cantu@nina.no" }]
 # PEP 621 project metadata
 # See https://www.python.org/dev/peps/pep-0621/
 dependencies = [
+  "better-exceptions>=0.3.3",
   "click>=8.3.0",
   "django-environ",
   "dlt>=1.17.1",
   "duckdb>=1.4.1",
   "numpy>=2.2.6",
   "pandas>=2.3.3",
+  "rich>=14.2.0",
   "structlog>=25.5.0",
+  "tqdm>=4.67.1",
+  "typer>=0.20.0",
 ]
 description = ""
 license = "GPL-3.0+"
-name = "nva_sync"
+name = "datasync"
 readme = "README.md"
 requires-python = ">=3.10"
 version = "0.1.0"
 
 
 [project.scripts]
-nva_sync = "main:start"
+nva_sync = "datasync.nva:app"
+datasync = "datasync.main:app"
 
 [dependency-groups]
-dev = [
-  "deptry",
-]
+dev = ["deptry"]
 
 [tool.ruff]
 fix = true
@@ -36,3 +37,7 @@ fix = true
 [tool.ruff.lint]
 ignore = ["COM812"]
 select = ["E", "W", "I", "F", "UP", "S", "B", "A", "COM", "LOG", "PTH", "Q"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
