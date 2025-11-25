@@ -1,52 +1,10 @@
-# NVA Sync
+# Data Sync
 
-## Data mappings
+Provide scripts to download and sync data
 
-The following table shows how data fields are mapped from the NVA API to the Cristin database format:
+- UBW
+- NVA
 
-| Cristin DB Field | NVA API Source |
-|------------------|----------------|
-| `PubID` | `None` (auto-generated) |
-| `Tittel` | `entityDescription.mainTitle` |
-| `Publiseringsaar` | `entityDescription.publicationDate.year` |
-| `DatoRegistrert` | `createdDate` |
-| `DatoEndret` | `modifiedDate` |
-| `Kategori` | `entityDescription.reference.publicationContext.type` |
-| `URL` | `id` |
-| `KategoriNavn` | `entityDescription.reference.publicationContext.name` |
-| `Underkategori` | `None` |
-| `Rapportserie` | `None` |
-| `Tidsskrift` | `entityDescription.reference.publicationContext.journal` |
-| `TidsskriftNiva` | `None` |
-| `hefte` | `None` |
-| `volum` | `entityDescription.reference.publicationInstance.volume` (safely extracted) |
-| `sider` | `entityDescription.reference.publicationInstance.pages` |
-| `issn` | `entityDescription.reference.publicationContext.issn` |
-| `ForedragArr` | `None` |
-| `Foredragsdato` | `None` |
-| `Authors` | `None` |
-| `Skjul` | `None` |
-| `Featured` | `None` |
-| `Timestamp` | `None` |
-| `Tekst` | `entityDescription.abstract` |
-| `Eier` | `resourceOwner.owner` |
-| `DateLastModified` | `modifiedDate` (formatted for SQL) |
-| `isbn` | `entityDescription.reference.publicationInstance.isbn` |
-| `Forlag` | `entityDescription.reference.publicationContext.publisher` |
-| `BokNiva` | `None` |
-| `Referanse` | `entityDescription.reference.publicationInstance.reference` |
-| `doi` | `entityDescription.reference.publicationInstance.doi` |
-| `TilPubliste` | `None` |
-| `Utgiver` | `publisher.id` |
-| `sprak` | `entityDescription.language` (mapped to language codes) |
-
-### Language Code Mapping
-
-The language field uses the following mapping from NVA API language URIs to Cristin codes:
-
-- `http://lexvo.org/id/iso639-3/eng` → `EN`
-- `http://lexvo.org/id/iso639-3/nor` → `NO`
-- `http://lexvo.org/id/iso639-3/nob` → `NOB`
 
 ## Setup
 Install `uv`: https://docs.astral.sh/uv/getting-started/installation/
@@ -65,12 +23,12 @@ To execute your software you have two options:
 
 **Option 1: Direct execution**
 ```bash
-uv run main.py
+uv run main.py --help
 ```
 
 **Option 2: Run as installed package**
 ```bash
-uvx --from . nva_sync
+uvx --from . datasync
 ```
 
 ### Development
