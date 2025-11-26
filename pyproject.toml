@@ -11,7 +11,7 @@ authors = [{name = "ninanor", email = "niccolo.cantu@nina.no"}]
 # See https://www.python.org/dev/peps/pep-0621/
 dependencies = [
   "django-environ",
-  "dlt[filesystem,parquet,s3]>=1.17.1",
+  "dlt[duckdb,filesystem,parquet,s3]>=1.17.1",
   "numpy>=2.2.6",
   "rich>=14.2.0",
   "structlog>=25.5.0",
