@@ -1,18 +1,21 @@
+[build-system]
+build-backend = "hatchling.build"
+requires = ["hatchling"]
+
+[dependency-groups]
+dev = ["deptry"]
 
 [project]
-authors = [{ name = "ninanor", email = "niccolo.cantu@nina.no" }]
+authors = [{name = "ninanor", email = "niccolo.cantu@nina.no"}]
 # PEP 621 project metadata
 # See https://www.python.org/dev/peps/pep-0621/
 dependencies = [
   "django-environ",
   "dlt[filesystem,parquet,s3]>=1.17.1",
-  "duckdb>=1.4.1",
   "numpy>=2.2.6",
-  "pandas>=2.3.3",
   "rich>=14.2.0",
   "structlog>=25.5.0",
-  "tqdm>=4.67.1",
-  "typer>=0.20.0",
+  "typer>=0.20.0"
 ]
 description = ""
 license = "GPL-3.0+"
@@ -21,14 +24,13 @@ readme = "README.md"
 requires-python = ">=3.10"
 version = "0.1.0"
 
-
 [project.scripts]
+datasync = "datasync.main:app"
 nva_sync = "datasync.nva:app"
 ubw_sync = "datasync.ubw:app"
-datasync = "datasync.main:app"
 
-[dependency-groups]
-dev = ["deptry"]
+[tool.deptry.per_rule_ignores]
+DEP002 = ["rich", "numpy"]
 
 [tool.ruff]
 fix = true
@@ -36,7 +38,3 @@ fix = true
 [tool.ruff.lint]
 ignore = ["COM812"]
 select = ["E", "W", "I", "F", "UP", "S", "B", "A", "COM", "LOG", "PTH", "Q"]
-
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
