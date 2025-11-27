@@ -44,7 +44,7 @@ def map_language_code(language_uri: str) -> str | None:
         "http://lexvo.org/id/iso639-3/eng": "EN",
         "http://lexvo.org/id/iso639-3/nor": "NO",
         "http://lexvo.org/id/iso639-3/nob": "NOB",
-    } # TODO: add more mappings as needed
+    }  # TODO: add more mappings as needed
     return language_map.get(language_uri)
 
 
@@ -82,7 +82,7 @@ def get_new_publications():
         # get existing publications from Pbase (normalized titles and years)
         existing_query = """
         SELECT LOWER(TRIM(Tittel)) as normalized_title, Publiseringsaar
-        FROM Cristin 
+        FROM Cristin
         WHERE Tittel IS NOT NULL
         """
 
@@ -96,8 +96,8 @@ def get_new_publications():
         # get all publications from NVA with required fields
         # TODO: Need to update this with respect to the readme
         nva_query = """
-        SELECT 
-            identifier, 
+        SELECT
+            identifier,
             entity_description__main_title,
             entity_description__publication_date__year,
             created_date,
@@ -218,8 +218,8 @@ def insert_new_publications(new_publications):
                 Tekst, Eier, DateLastModified, isbn, Forlag, BokNiva,
                 Referanse, doi, TilPubliste, Utgiver, sprak
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """
-            ## TODO: need to fix this part properly 
+            """  # noqa: E501
+            ## TODO: need to fix this part properly
             values = (
                 next_pub_id,  # PubID
                 main_title,  # Tittel

@@ -38,7 +38,7 @@ Question: Why am I only getting 1438 rows in my DLT-table?
 2. Run the script underneath
 
 ```bash
-sling run -r repliacte_pbase_cristin.yaml 
+sling run -r repliacte_pbase_cristin.yaml
 ```
 
 #### 03 Synchronize the data from NVA to Pbase
