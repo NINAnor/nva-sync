@@ -8,10 +8,18 @@ Provide scripts to download and sync data
 ## Setup
 Install `uv`: https://docs.astral.sh/uv/getting-started/installation/
 
-### 01 Get data from NVA
+### UBW
 
 ```bash
-uv run main.py
+uv run main.py --help
+```
+
+### NVA
+
+#### 01 Get data from NVA
+
+```bash
+uv run main.py --help
 ```
 
 You have to add flags to specify what type of data you want to fetch:
@@ -24,7 +32,7 @@ You have to add flags to specify what type of data you want to fetch:
 
 Question: Why am I only getting 1438 rows in my DLT-table?
 
-### 02 Get data from Pbase (internal database)
+#### 02 Get data from Pbase (internal database)
 
 1. Set up sling correctly (connect and authenticate to Pbase).
 2. Run the script underneath
@@ -33,9 +41,9 @@ Question: Why am I only getting 1438 rows in my DLT-table?
 sling run -r repliacte_pbase_cristin.yaml 
 ```
 
-## 03 Synchronize the data from NVA to Pbase
+#### 03 Synchronize the data from NVA to Pbase
 
-WIP
+WIPWIPWIPWIPWIPWIP
 
 The project includes a data synchronization script (`sync_data.py`) that merges publications from the NVA database (`nva_sync.duckdb`) into the existing Cristin database (`pbase_duck/pbase.duckdb`).
 
