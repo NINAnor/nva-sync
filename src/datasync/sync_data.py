@@ -68,6 +68,32 @@ def extract_pages(pages_begin: str, pages_end: str) -> str | None:
     return None
 
 
+def extract_authors(author_data: Any) -> str | None:
+    """Extract and format authors from NVA data."""
+    if isinstance(author_data, list):
+        authors = []
+        for author in author_data:
+            name = author.get("name")
+            first_name = name.split(" ")[0] if name else None
+            last_name = (
+                " ".join(name.split(" ")[1:])
+                if name and len(name.split(" ")) > 1
+                else None
+            )
+            if name:
+                authors.append(
+                    f"{last_name}, {first_name[0]}" if last_name else first_name
+                )
+        return "; ".join(authors) if authors else None
+    return None
+
+
+def create_url_from_id(nva_id: str) -> str:
+    """Create full URL from NVA identifier."""
+    base_url = "https://nva.sikt.no/registration/"
+    return f"{base_url}{nva_id}"
+
+
 def get_new_publications():
     """
     Find publications in NVA database that don't exist in Cristin database.

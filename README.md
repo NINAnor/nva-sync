@@ -76,7 +76,7 @@ The following table shows how data fields are mapped from the NVA API to the Cri
 | `DatoRegistrert` | `createdDate` | `created_date` |
 | `DatoEndret` | `modifiedDate` | `modified_date` |
 | `Kategori` | `entityDescription.reference.publicationContext.type` | `entity_description__reference__publication_context__type` |
-| `URL` | `id` | `id` have to add the rest of the link |
+| `URL` | `id` | `id` have to add the rest of the link: https://nva.sikt.no/registration |
 | `KategoriNavn` |  `None` | `None` |
 | `Underkategori` | `entityDescription.reference.publicationInstance.type` |`entity_description__reference__publication_instance__type` (translate this?) |
 | `Rapportserie` | `entityDescription.reference.publicationContext.seriesNumber` | `entity_description__reference__publication_context__series_number` |
