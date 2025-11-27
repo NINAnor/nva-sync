@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
 
-"""
-Script to sync data from NVA database to Cristin database.
-Identifies new publications in NVA that don't exist in Cristin and adds them.
-"""
-
 import logging
 import pathlib
 from datetime import datetime
@@ -12,6 +7,8 @@ from typing import Any
 
 import duckdb
 import environ
+
+from .settings import CRISTIN_DB_PATH, NVA_DUCKDB_NAME
 
 # Setup environment and logging
 env = environ.Env()
@@ -23,8 +20,6 @@ logging.basicConfig(level=(logging.DEBUG if DEBUG else logging.INFO))
 logger = logging.getLogger(__name__)
 
 # Database paths
-NVA_DB_PATH = BASE_DIR / "nva_sync.duckdb"
-CRISTIN_DB_PATH = BASE_DIR / "pbase_duck" / "pbase.duckdb"
 
 
 def format_datetime_for_sql(date_obj) -> str | None:
@@ -32,10 +27,8 @@ def format_datetime_for_sql(date_obj) -> str | None:
     if not date_obj:
         return None
     try:
-        # If it's already a datetime object, format it
         if hasattr(date_obj, "strftime"):
             return date_obj.strftime("%Y-%m-%d %H:%M:%S")
-        # If it's a string, parse it first
         elif isinstance(date_obj, str):
             dt = datetime.fromisoformat(date_obj.replace("Z", "+00:00"))
             return dt.strftime("%Y-%m-%d %H:%M:%S")
@@ -51,7 +44,7 @@ def map_language_code(language_uri: str) -> str | None:
         "http://lexvo.org/id/iso639-3/eng": "EN",
         "http://lexvo.org/id/iso639-3/nor": "NO",
         "http://lexvo.org/id/iso639-3/nob": "NOB",
-    }
+    } # TODO: add more mappings as needed
     return language_map.get(language_uri)
 
 
@@ -81,12 +74,12 @@ def get_new_publications():
     Uses title and publication year as matching criteria.
     """
 
-    # Connect to both databases
-    nva_conn = duckdb.connect(str(NVA_DB_PATH))
+    # connect to both databases
+    nva_conn = duckdb.connect(str(NVA_DUCKDB_NAME))
     cristin_conn = duckdb.connect(str(CRISTIN_DB_PATH))
 
     try:
-        # Get existing publications from Cristin (normalized titles and years)
+        # get existing publications from Pbase (normalized titles and years)
         existing_query = """
         SELECT LOWER(TRIM(Tittel)) as normalized_title, Publiseringsaar
         FROM Cristin 
@@ -100,7 +93,8 @@ def get_new_publications():
             f"Found {len(existing_set)} existing publications in Cristin database"
         )
 
-        # Get all publications from NVA with required fields
+        # get all publications from NVA with required fields
+        # TODO: Need to update this with respect to the readme
         nva_query = """
         SELECT 
             identifier, 
@@ -134,7 +128,6 @@ def get_new_publications():
 
         logger.info(f"Found {len(nva_pubs)} publications in NVA database")
 
-        # Find new publications
         new_publications = []
         for pub in nva_pubs:
             title = pub[1]  # entity_description__main_title
@@ -163,7 +156,7 @@ def insert_new_publications(new_publications):
     cristin_conn = duckdb.connect(str(CRISTIN_DB_PATH))
 
     try:
-        # Get the next PubID (max existing + 1)
+        # get next PubID (max existing + 1)
         max_id_result = cristin_conn.execute(
             "SELECT COALESCE(MAX(PubID), 0) FROM Cristin"
         ).fetchone()
@@ -226,7 +219,7 @@ def insert_new_publications(new_publications):
                 Referanse, doi, TilPubliste, Utgiver, sprak
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """
-
+            ## TODO: need to fix this part properly 
             values = (
                 next_pub_id,  # PubID
                 main_title,  # Tittel
