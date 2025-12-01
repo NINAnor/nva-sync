@@ -2,7 +2,13 @@ import dlt
 import typer
 from dlt.sources.rest_api import rest_api_source
 
-from .settings import NVA_BASE_URL, NVA_DUCKDB_NAME, NVA_INSTITUION_CODE, log
+from .settings import (
+    INSTITUTION_CODE,
+    INSTITUTION_NAME,
+    NVA_BASE_URL,
+    NVA_DUCKDB_NAME,
+    log,
+)
 
 app = typer.Typer()
 
@@ -16,7 +22,8 @@ def run(
     funding_sources: bool = False,
     base_url: str = NVA_BASE_URL,
     duckdb_name: str = NVA_DUCKDB_NAME,
-    institution_code: str = NVA_INSTITUION_CODE,
+    institution_name: str = INSTITUTION_NAME,
+    institution_code: str = INSTITUTION_CODE,
 ):
     source = rest_api_source(
         {
@@ -37,7 +44,7 @@ def run(
                                 "path": "search/resources",
                                 "data_selector": "hits",
                                 "params": {
-                                    "institution": institution_code,
+                                    "institution": institution_name,
                                 },
                             },
                         }

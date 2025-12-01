@@ -17,7 +17,8 @@ log = configure_logger(
 
 NVA_BASE_URL = env("NVA_BASE_URL", default="https://api.nva.unit.no/")
 NVA_DUCKDB_NAME = env("NVA_DUCKDB_FILE_NAME", default="nva_sync")
-NVA_INSTITUION_CODE = env("NVA_INSTITUTION_CODE", default="7511.0.0.0")
+INSTITUTION_NAME = env("INSTITUTION_NAME", default="NINA")
+INSTITUTION_CODE = env("INSTITUTION_CODE", default="7511.0.0.0")
 CRISTIN_DB_PATH = env("CRISTIN_DB_PATH")
 
 
