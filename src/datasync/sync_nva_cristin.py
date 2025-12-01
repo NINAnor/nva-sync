@@ -1,25 +1,16 @@
 #!/usr/bin/env python3
 
 import logging
-import pathlib
 from datetime import datetime
 from typing import Any
 
 import duckdb
-import environ
 
 from .settings import CRISTIN_DB_PATH, NVA_DUCKDB_NAME
 
-# Setup environment and logging
-env = environ.Env()
-BASE_DIR = pathlib.Path(__file__).parent
-environ.Env.read_env(str(BASE_DIR / ".env"))
-
-DEBUG = env.bool("DEBUG", default=False)
-logging.basicConfig(level=(logging.DEBUG if DEBUG else logging.INFO))
+# Setup logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# Database paths
 
 
 def format_datetime_for_sql(date_obj) -> str | None:
@@ -68,28 +59,57 @@ def extract_pages(pages_begin: str, pages_end: str) -> str | None:
     return None
 
 
-def extract_authors(author_data: Any) -> str | None:
-    """Extract and format authors from NVA data."""
-    if isinstance(author_data, list):
-        authors = []
-        for author in author_data:
-            name = author.get("name")
-            first_name = name.split(" ")[0] if name else None
-            last_name = (
-                " ".join(name.split(" ")[1:])
-                if name and len(name.split(" ")) > 1
-                else None
-            )
-            if name:
-                authors.append(
-                    f"{last_name}, {first_name[0]}" if last_name else first_name
-                )
-        return "; ".join(authors) if authors else None
+def get_authors_for_publication(nva_conn, resource_id: str) -> str | None:
+    """Extract authors from contributors table for a specific publication."""
+    try:
+        authors_query = """
+        SELECT c.identity__name
+        FROM resources__entity_description__contributors c
+        WHERE c._dlt_parent_id = ?
+        ORDER BY c._dlt_list_idx
+        """
+
+        authors_result = nva_conn.execute(authors_query, [resource_id]).fetchall()
+
+        if authors_result:
+            # Format authors as "Last, F." style
+            formatted_authors = []
+            for (author_name,) in authors_result:
+                if author_name:
+                    name_parts = author_name.strip().split(" ")
+                    if len(name_parts) > 1:
+                        first_name = name_parts[0]
+                        last_name = " ".join(name_parts[1:])
+                        formatted_authors.append(f"{last_name}, {first_name[0]}.")
+                    else:
+                        formatted_authors.append(author_name)
+
+            return "; ".join(formatted_authors) if formatted_authors else None
+    except Exception as e:
+        logger.debug(f"Error extracting authors for {resource_id}: {e}")
+    return None
+
+
+def get_isbn_for_publication(nva_conn, resource_id: str) -> str | None:
+    """Extract first ISBN from ISBN list table for a specific publication."""
+    try:
+        isbn_query = """
+        SELECT value
+        FROM resources__entity_description__reference__publication_context__isbn_list
+        WHERE _dlt_parent_id = ?
+        ORDER BY _dlt_list_idx
+        LIMIT 1
+        """
+
+        isbn_result = nva_conn.execute(isbn_query, [resource_id]).fetchone()
+        return isbn_result[0] if isbn_result else None
+    except Exception as e:
+        logger.debug(f"Error extracting ISBN for {resource_id}: {e}")
     return None
 
 
 def create_url_from_id(nva_id: str) -> str:
-    """Create full URL from NVA identifier."""
+    """Creating full URL with NVA identifier."""
     base_url = "https://nva.sikt.no/registration/"
     return f"{base_url}{nva_id}"
 
@@ -120,32 +140,24 @@ def get_new_publications():
         )
 
         # get all publications from NVA with required fields
-        # TODO: Need to update this with respect to the readme
         nva_query = """
         SELECT
             identifier,
+            _dlt_id,
             entity_description__main_title,
             entity_description__publication_date__year,
             created_date,
             modified_date,
-            entity_description__reference__type,
             entity_description__reference__publication_context__type,
+            entity_description__reference__publication_instance__type,
+            entity_description__reference__publication_context__series_number,
             entity_description__reference__publication_context__name,
-            entity_description__reference__publication_context__name as journal_name,
-            entity_description__reference__publication_context__scientific_value,
-            entity_description__reference__publication_instance__issue,
-            entity_description__reference__publication_instance__volume,
             entity_description__reference__publication_instance__pages__begin,
             entity_description__reference__publication_instance__pages__end,
-            entity_description__reference__publication_context__online_issn,
-            entity_description__description,
+            entity_description__reference__publication_context__series__online_issn,
+            entity_description__abstract,
             resource_owner__owner,
-            NULL as isbn,
-            NULL as publisher_name,
-            NULL as reference,
-            entity_description__reference__doi,
-            publisher__id,
-            entity_description__language
+            entity_description__reference__doi
         FROM resources
         WHERE entity_description__main_title IS NOT NULL
         """
@@ -156,13 +168,21 @@ def get_new_publications():
 
         new_publications = []
         for pub in nva_pubs:
-            title = pub[1]  # entity_description__main_title
-            year = pub[2]  # entity_description__publication_date__year
+            _ = pub[0]  # identifier (for URL construction)
+            dlt_id = pub[1]  # _dlt_id (for joining with contributors)
+            title = pub[2]  # entity_description__main_title
+            year = pub[3]  # entity_description__publication_date__year
 
             if title:
                 normalized_title = title.lower().strip()
                 if (normalized_title, year) not in existing_set:
-                    new_publications.append(pub)
+                    # get authors and ISBN for this publication using _dlt_id
+                    authors = get_authors_for_publication(nva_conn, dlt_id)
+                    isbn = get_isbn_for_publication(nva_conn, dlt_id)
+
+                    # add the additional data to the publication tuple
+                    pub_with_extras = pub + (authors, isbn)
+                    new_publications.append(pub_with_extras)
 
         logger.info(f"Found {len(new_publications)} new publications to add")
         return new_publications
@@ -192,49 +212,41 @@ def insert_new_publications(new_publications):
 
         for pub in new_publications:
             (
-                identifier,
-                main_title,
-                pub_year,
-                created_date,
-                modified_date,
-                ref_type,
-                context_type,
-                context_name,
-                journal_name,
-                level,
-                issue,
-                volume,
-                pages_begin,
-                pages_end,
-                issn,
-                abstract,
-                owner,
-                isbn,
-                publisher_name,
-                reference,
-                doi,
-                publisher_id,
-                language,
+                identifier,  # NVA ID for URL construction
+                dlt_id,  # _dlt_id (not used in insert but part of tuple)
+                main_title,  # entity_description__main_title
+                pub_year,  # entity_description__publication_date__year
+                created_date,  # created_date
+                modified_date,  # modified_date
+                context_type,  # context type
+                instance_type,  # instance type
+                series_number,  # series number
+                context_name,  # context name
+                pages_begin,  # pages begin
+                pages_end,  # pages end
+                issn,  # issn
+                abstract,  # abstract
+                owner,  # owner
+                doi,  # doi
+                authors,  # extracted from contributors table
+                isbn,  # extracted from ISBN list table
             ) = pub
 
-            # Format dates
+            # format dates according to README mappings
             date_registered = (
                 format_datetime_for_sql(created_date) if created_date else None
             )
-            date_modified = (
+            date_modified_formatted = (
                 format_datetime_for_sql(modified_date) if modified_date else None
             )
 
-            # Process volume safely
-            volume_value = extract_volume_safely(volume)
-
-            # Combine pages
+            # combine pages into range format
             pages = extract_pages(pages_begin, pages_end)
 
-            # Map language
-            language_code = map_language_code(language) if language else None
+            # create full URL from NVA identifier
+            full_url = create_url_from_id(identifier)
 
-            # Insert into Cristin table
+            # insert into Cristin table with proper field mapping from README
             insert_query = """
             INSERT INTO Cristin (
                 PubID, Tittel, Publiseringsaar, DatoRegistrert, DatoEndret,
@@ -243,42 +255,46 @@ def insert_new_publications(new_publications):
                 ForedragArr, Foredragdato, Authors, Skjul, Featured,
                 Tekst, Eier, DateLastModified, isbn, Forlag, BokNiva,
                 Referanse, doi, TilPubliste, Utgiver, sprak
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """  # noqa: E501
-            ## TODO: need to fix this part properly
+            ) VALUES (
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            )
+            """
+
+            # map values according to README data mapping table
             values = (
-                next_pub_id,  # PubID
+                next_pub_id,  # PubID (auto-generated)
                 main_title,  # Tittel
                 int(pub_year) if pub_year else None,  # Publiseringsaar
                 date_registered,  # DatoRegistrert
-                date_modified,  # DatoEndret
+                date_modified_formatted,  # DatoEndret
                 context_type,  # Kategori
-                identifier,  # url (using NVA identifier)
-                context_name,  # KategoriNavn
-                None,  # Underkategori
-                None,  # Rapportserie
-                journal_name,  # Tidsskrift
-                level,  # TidsskriftNiva
-                issue,  # hefte
-                volume_value,  # volum
+                full_url,  # URL (full NVA URL)
+                None,  # KategoriNavn
+                instance_type,  # Underkategori
+                series_number,  # Rapportserie
+                context_name,  # Tidsskrift
+                None,  # TidsskriftNiva
+                None,  # hefte
+                None,  # volum
                 pages,  # sider
                 issn,  # issn
                 None,  # ForedragArr
                 None,  # Foredragdato
-                None,  # Authors
+                authors,  # Authors (from contributors table)
                 None,  # Skjul
                 None,  # Featured
                 abstract,  # Tekst
                 owner,  # Eier
-                date_modified,  # DateLastModified
-                isbn,  # isbn
-                publisher_name,  # Forlag
+                date_modified_formatted,  # DateLastModified
+                isbn,  # isbn (from ISBN list table)
+                None,  # Forlag
                 None,  # BokNiva
-                reference,  # Referanse
+                None,  # Referanse
                 doi,  # doi
                 None,  # TilPubliste
-                publisher_id,  # Utgiver
-                language_code,  # sprak
+                context_name,  # Utgiver (same as Tidsskrift)
+                None,  # sprak
             )
 
             try:
@@ -293,7 +309,7 @@ def insert_new_publications(new_publications):
                 logger.error(f"Error inserting publication '{main_title}': {e}")
                 continue
 
-        # Commit changes
+        # commit changes
         cristin_conn.commit()
         logger.info(f"Successfully inserted {inserted_count} new publications")
 
@@ -308,13 +324,12 @@ def insert_new_publications(new_publications):
 def main():
     """Main function to sync data from NVA to Cristin database."""
     logger.info("Starting NVA to Cristin data sync...")
-    logger.info("WIP :-)")
 
     try:
-        # Find new publications
+        # find new publications
         new_publications = get_new_publications()
 
-        # Insert new publications
+        # insert the new publications
         insert_new_publications(new_publications)
 
         logger.info("Data sync completed successfully!")

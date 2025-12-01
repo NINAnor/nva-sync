@@ -43,28 +43,24 @@ sling run -r repliacte_pbase_cristin.yaml
 
 #### 03 Synchronize the data from NVA to Pbase
 
-WIPWIPWIPWIPWIPWIP
-
 The project includes a data synchronization script (`sync_data.py`) that merges publications from the NVA database (`nva_sync.duckdb`) into the existing Cristin database (`pbase_duck/pbase.duckdb`).
 
-1. **Duplicate Detection**: The script compares publications by title and publication year to avoid duplicates
+1. **Detect duplicates**: The script compares publications by title and publication year to avoid duplicates
 2. **Data Mapping**: NVA API fields are mapped to Cristin database schema using the mapping table above
 3. **Incremental IDs**: New publications receive auto-generated PubID values starting from the highest existing ID + 1
 
 ```bash
-uv run src/datasync/sync_data.py
+uv run src.datasync.sync_nva_cristin.py
 ```
 
 The script will:
 
-- Analyzes both databases to identify new publications in NVA that don't exist in Cristin -- This is a WIP
-- Transform NVA data to match Cristin schema -- WIP
-- Insert new records with proper field mapping - WIP
-- Report the number of publications added - WIP
+- Analyze both databases to find new publications in NVA that don't exist in the table Cristin in database Pbase
+- Map NVA data to match Cristin schema
+- Insert new records with the field mapping
+- Report the number of publications added
 
-Last successful sync added **1,483 new publications** from NVA to the Cristin database, bringing the total from 19,627 to 21,110 records.
-
-# Data mappings
+## Data mappings
 
 The following table shows how data fields are mapped from the NVA API to the Cristin database format.
 
@@ -78,7 +74,7 @@ The following table shows how data fields are mapped from the NVA API to the Cri
 | `Kategori` | `entityDescription.reference.publicationContext.type` | `entity_description__reference__publication_context__type` |
 | `URL` | `id` | `id` have to add the rest of the link: https://nva.sikt.no/registration |
 | `KategoriNavn` |  `None` | `None` |
-| `Underkategori` | `entityDescription.reference.publicationInstance.type` |`entity_description__reference__publication_instance__type` (translate this?) |
+| `Underkategori` | `entityDescription.reference.publicationInstance.type` |`entity_description__reference__publication_instance__type` |
 | `Rapportserie` | `entityDescription.reference.publicationContext.seriesNumber` | `entity_description__reference__publication_context__series_number` |
 | `Tidsskrift` | `entityDescription.reference.publicationContext.journal` | `entity_description__reference__publication_context__name` Is this column supposed to be the same as `Utgiver`? |
 | `TidsskriftNiva` | `None` | `None` |
@@ -104,8 +100,8 @@ The following table shows how data fields are mapped from the NVA API to the Cri
 | `Utgiver` | `entityDescription.reference.publisher.name` | `entity_description__reference__publication_context__name` |
 | `sprak` | `entityDescription.language` (mapp to language codes) | `entity_description__language` |
 
-* If table not specified it's in `resources` table.
-** If column is `None` NVA doesn't have the data
+- * If table not specified it's in `resources` table.
+- ** If column is `None` NVA doesn't have the data
 
 ### Language Code Mapping
 
