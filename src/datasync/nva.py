@@ -4,7 +4,6 @@ from dlt.sources.rest_api import rest_api_source
 
 from .settings import (
     INSTITUTION_CODE,
-    INSTITUTION_NAME,
     NVA_BASE_URL,
     NVA_DUCKDB_NAME,
     log,
@@ -13,19 +12,29 @@ from .settings import (
 app = typer.Typer()
 
 
-@app.command()
-def run(
-    resources: bool = False,
-    projects: bool = False,
-    persons: bool = False,
-    categories: bool = False,
-    funding_sources: bool = False,
-    base_url: str = NVA_BASE_URL,
-    duckdb_name: str = NVA_DUCKDB_NAME,
-    institution_name: str = INSTITUTION_NAME,
-    institution_code: str = INSTITUTION_CODE,
+def dlt_source(
+    year,
+    resources,
+    projects,
+    persons,
+    categories,
+    funding_sources,
+    base_url,
+    institution_code,
 ):
-    source = rest_api_source(
+    if year is None:
+        log.info("No year specified, syncing all available years.")
+        resource_params = {
+            "unit": institution_code,
+        }
+    else:
+        log.info(f"Syncing data for year: {year}")
+        resource_params = {
+            "unit": institution_code,
+            "publicationYearSince": year,
+            "publicationYearBefore": year + 1,
+        }
+    return rest_api_source(
         {
             "client": {
                 "base_url": base_url,
@@ -44,7 +53,7 @@ def run(
                                 "path": "search/resources",
                                 "data_selector": "hits",
                                 "params": {
-                                    "institution": institution_name,
+                                    **resource_params,
                                 },
                             },
                         }
@@ -92,12 +101,35 @@ def run(
         }
     )
 
+
+@app.command()
+def run(
+    resources: bool = False,
+    projects: bool = False,
+    persons: bool = False,
+    categories: bool = False,
+    funding_sources: bool = False,
+    base_url: str = NVA_BASE_URL,
+    duckdb_name: str = NVA_DUCKDB_NAME,
+    institution_code: str = INSTITUTION_CODE,
+    year: int = None,
+):
     pipeline = dlt.pipeline(
         pipeline_name=duckdb_name,
         destination="duckdb",
         dataset_name="main",
     )
 
+    source = dlt_source(
+        year=year,
+        resources=resources,
+        projects=projects,
+        persons=persons,
+        categories=categories,
+        funding_sources=funding_sources,
+        base_url=base_url,
+        institution_code=institution_code,
+    )
     log.info(pipeline.run(source))
 
 
