@@ -49,6 +49,7 @@ def dlt_source(
                     [
                         {
                             "name": "resources",
+                            "max_table_nesting": 0,
                             "endpoint": {
                                 "path": "search/resources",
                                 "data_selector": "hits",
@@ -61,6 +62,7 @@ def dlt_source(
                         else None,
                         {
                             "name": "projects",
+                            "max_table_nesting": 0,
                             "endpoint": {
                                 "path": f"cristin/organization/{institution_code}/projects",  # noqa: E501
                                 "data_selector": "hits",
@@ -70,6 +72,7 @@ def dlt_source(
                         else None,
                         {
                             "name": "persons",
+                            "max_table_nesting": 0,
                             "endpoint": {
                                 "path": f"cristin/organization/{institution_code}/persons",  # noqa: E501
                                 "data_selector": "hits",
@@ -79,6 +82,7 @@ def dlt_source(
                         else None,
                         {
                             "name": "categories",
+                            "max_table_nesting": 0,
                             "endpoint": {
                                 "path": "cristin/category/project",
                                 "data_selector": "hits",
@@ -88,6 +92,7 @@ def dlt_source(
                         else None,
                         {
                             "name": "funding_sources",
+                            "max_table_nesting": 0,
                             "endpoint": {
                                 "path": "cristin/funding-sources",
                                 "data_selector": "hits",
