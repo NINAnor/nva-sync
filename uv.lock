@@ -346,7 +346,6 @@ dependencies = [
     { name = "duckdb" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.3.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
-    { name = "rich" },
     { name = "structlog" },
     { name = "typer" },
 ]
@@ -362,7 +361,6 @@ requires-dist = [
     { name = "dlt", extras = ["duckdb", "filesystem", "parquet", "s3"], specifier = ">=1.17.1" },
     { name = "duckdb" },
     { name = "numpy", specifier = ">=2.2.6" },
-    { name = "rich", specifier = ">=14.2.0" },
     { name = "structlog", specifier = ">=25.5.0" },
     { name = "typer", specifier = ">=0.20.0" },
 ]
