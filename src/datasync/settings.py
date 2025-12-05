@@ -16,7 +16,6 @@ log = configure_logger(
 
 # NVA
 NVA_BASE_URL = env("NVA_BASE_URL", default="https://api.nva.unit.no/")
-NVA_DUCKDB_NAME = env("NVA_DUCKDB_FILE_NAME", default="nva_sync")
 NVA_INSTITUTION_CODE = env("NVA_INSTITUTION_CODE", default="7511.0.0.0")
 NVA_ACCESS_KEY = env("NVA_ACCESS_KEY", default="")
 NVA_SECRET_KEY = env("NVA_SECRET_KEY", default="")

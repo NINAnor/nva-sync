@@ -11,7 +11,6 @@ from .settings import (
     NVA_ACCESS_KEY,
     NVA_BASE_URL,
     NVA_BUCKET,
-    NVA_DUCKDB_NAME,
     NVA_ENDPOINT,
     NVA_INSTITUTION_CODE,
     NVA_PREFIX,
@@ -135,7 +134,6 @@ def run(
     categories: bool = False,
     funding_sources: bool = False,
     base_url: str = NVA_BASE_URL,
-    duckdb_name: str = NVA_DUCKDB_NAME,
     institution_code: str = NVA_INSTITUTION_CODE,
     endpoint_url: str = NVA_ENDPOINT,
     access_key: str = NVA_ACCESS_KEY,
@@ -149,11 +147,11 @@ def run(
         endpoint_url=endpoint_url,
         aws_secret_access_key=secret_key,
         aws_access_key_id=access_key,
-        region_name="",
+        region_name=region,
     )
 
     pipeline = dlt.pipeline(
-        pipeline_name=duckdb_name,
+        pipeline_name="nva_sync",
         destination=filesystem(
             bucket_url=f"s3://{bucket}/" + prefix,
             credentials=credentials,
