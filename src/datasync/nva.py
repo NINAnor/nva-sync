@@ -8,9 +8,9 @@ from dlt.sources.helpers.rest_client import RESTClient
 from dlt.sources.helpers.rest_client.paginators import JSONLinkPaginator
 
 from .settings import (
-    INSTITUTION_CODE,
     NVA_BASE_URL,
     NVA_DUCKDB_NAME,
+    NVA_INSTITUTION_CODE,
     log,
 )
 
@@ -66,7 +66,7 @@ def get_resources(client: RESTClient, institution_code: str):
 @dlt.source()
 def nva(
     base_url: str = NVA_BASE_URL,
-    institution_code: str = INSTITUTION_CODE,
+    institution_code: str = NVA_INSTITUTION_CODE,
     resources: bool = False,
     projects: bool = False,
     persons: bool = False,
@@ -130,7 +130,7 @@ def run(
     funding_sources: bool = False,
     base_url: str = NVA_BASE_URL,
     duckdb_name: str = NVA_DUCKDB_NAME,
-    institution_code: str = INSTITUTION_CODE,
+    institution_code: str = NVA_INSTITUTION_CODE,
 ):
     pipeline = dlt.pipeline(
         pipeline_name=duckdb_name,
