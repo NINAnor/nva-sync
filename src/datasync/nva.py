@@ -1,16 +1,22 @@
 import datetime
-import pathlib
 
 import dlt
 import typer
 from dlt.destinations.impl.filesystem.factory import filesystem
+from dlt.sources.credentials import AwsCredentials
 from dlt.sources.helpers.rest_client import RESTClient
 from dlt.sources.helpers.rest_client.paginators import JSONLinkPaginator
 
 from .settings import (
+    NVA_ACCESS_KEY,
     NVA_BASE_URL,
+    NVA_BUCKET,
     NVA_DUCKDB_NAME,
+    NVA_ENDPOINT,
     NVA_INSTITUTION_CODE,
+    NVA_PREFIX,
+    NVA_REGION,
+    NVA_SECRET_KEY,
     log,
 )
 
@@ -131,12 +137,26 @@ def run(
     base_url: str = NVA_BASE_URL,
     duckdb_name: str = NVA_DUCKDB_NAME,
     institution_code: str = NVA_INSTITUTION_CODE,
+    endpoint_url: str = NVA_ENDPOINT,
+    access_key: str = NVA_ACCESS_KEY,
+    secret_key: str = NVA_SECRET_KEY,
+    bucket: str = NVA_BUCKET,
+    prefix: str = NVA_PREFIX,
+    region: str = NVA_REGION,
 ):
+    credentials = AwsCredentials(
+        s3_url_style="path",
+        endpoint_url=endpoint_url,
+        aws_secret_access_key=secret_key,
+        aws_access_key_id=access_key,
+        region_name="",
+    )
+
     pipeline = dlt.pipeline(
         pipeline_name=duckdb_name,
         destination=filesystem(
-            bucket_url="file://"
-            + str(pathlib.Path(__name__).absolute().parent / "data"),
+            bucket_url=f"s3://{bucket}/" + prefix,
+            credentials=credentials,
             layout="{table_name}.{ext}",
         ),
         dataset_name="main",
