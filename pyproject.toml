@@ -14,6 +14,7 @@ dependencies = [
   "dlt[duckdb,filesystem,parquet,s3]>=1.17.1",
   "numpy>=2.2.6",
   "structlog>=25.5.0",
+  "rich>=14.2.0",
   "typer>=0.20.0"
 ]
 description = ""
