@@ -67,7 +67,7 @@ def get_resources(client: RESTClient, institution_code: str):
 def nva(
     base_url: str = NVA_BASE_URL,
     institution_code: str = NVA_INSTITUTION_CODE,
-    resources: bool = False,
+    no_resources: bool = False,
     projects: bool = False,
     persons: bool = False,
     categories: bool = False,
@@ -79,9 +79,9 @@ def nva(
         data_selector="hits",
     )
 
-    if resources:
+    if not no_resources:
         yield dlt.resource(
-            get_resources(),
+            get_resources(client, institution_code),
             name="resources",
             write_disposition="replace",
             max_table_nesting=1,
@@ -123,7 +123,7 @@ def nva(
 
 @app.command()
 def run(
-    resources: bool = False,
+    no_resources: bool = False,
     projects: bool = False,
     persons: bool = False,
     categories: bool = False,
@@ -148,7 +148,7 @@ def run(
             nva(
                 base_url=base_url,
                 institution_code=institution_code,
-                resources=resources,
+                no_resources=no_resources,
                 projects=projects,
                 persons=persons,
                 categories=categories,
