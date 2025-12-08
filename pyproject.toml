@@ -16,7 +16,6 @@ dependencies = [
   "structlog>=25.5.0",
   "rich>=14.2.0",
   "typer>=0.20.0",
-  "click>=8.3.0",
   "requests>=2.32.5"
 ]
 description = ""
