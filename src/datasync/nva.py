@@ -1,97 +1,183 @@
+import datetime
+
 import dlt
 import typer
-from dlt.sources.rest_api import rest_api_source
+from dlt.destinations.impl.filesystem.factory import filesystem
+from dlt.sources.credentials import AwsCredentials
+from dlt.sources.helpers.rest_client import RESTClient
+from dlt.sources.helpers.rest_client.paginators import JSONLinkPaginator
 
-from .settings import NVA_BASE_URL, NVA_DUCKDB_NAME, NVA_INSTITUION_CODE, log
+from .settings import (
+    NVA_ACCESS_KEY,
+    NVA_BASE_URL,
+    NVA_BUCKET,
+    NVA_DUCKDB_NAME,
+    NVA_ENDPOINT,
+    NVA_INSTITUTION_CODE,
+    NVA_PREFIX,
+    NVA_REGION,
+    NVA_SECRET_KEY,
+    log,
+)
 
 app = typer.Typer()
 
 
+def get_funding_sources(client: RESTClient):
+    log.debug("Fetching funding sources")
+    yield from client.paginate(
+        "cristin/funding-sources",
+        method="get",
+    )
+
+
+def get_persons(client: RESTClient, institution_code: str):
+    log.debug("Fetching persons")
+    yield from client.paginate(
+        f"cristin/organization/{institution_code}/persons",
+        method="get",
+    )
+
+
+def get_projects(client: RESTClient, institution_code: str):
+    log.debug("Fetching projects")
+    yield from client.paginate(
+        f"cristin/organization/{institution_code}/projects",
+        method="get",
+    )
+
+
+def get_categories(client: RESTClient):
+    log.debug("Fetching categories")
+    yield from client.paginate(
+        "cristin/category/project",
+        method="get",
+    )
+
+
+def get_resources(client: RESTClient, institution_code: str):
+    for year in set(range(1979, datetime.datetime.now().year + 1)):
+        log.debug("Fetching resources for year", year=year)
+        yield from client.paginate(
+            "search/resources",
+            method="get",
+            params={
+                "unit": institution_code,
+                "publicationYearSince": year,
+                "publicationYearBefore": year + 1,
+            },
+        )
+
+
+@dlt.source()
+def nva(
+    base_url: str = NVA_BASE_URL,
+    institution_code: str = NVA_INSTITUTION_CODE,
+    no_resources: bool = False,
+    projects: bool = False,
+    persons: bool = False,
+    categories: bool = False,
+    funding_sources: bool = False,
+):
+    client = RESTClient(
+        base_url=base_url,
+        paginator=JSONLinkPaginator(next_url_path="nextResults"),
+        data_selector="hits",
+    )
+
+    if not no_resources:
+        yield dlt.resource(
+            get_resources(client, institution_code),
+            name="resources",
+            write_disposition="replace",
+            max_table_nesting=1,
+        )
+
+    if projects:
+        yield dlt.resource(
+            get_projects(client, institution_code),
+            name="projects",
+            write_disposition="replace",
+            max_table_nesting=1,
+        )
+
+    if persons:
+        yield dlt.resource(
+            get_persons(client, institution_code),
+            name="persons",
+            write_disposition="replace",
+            max_table_nesting=1,
+        )
+    if categories:
+        yield dlt.resource(
+            get_categories(client),
+            name="categories",
+            write_disposition="replace",
+            max_table_nesting=1,
+        )
+
+    if funding_sources:
+        yield dlt.resource(
+            get_funding_sources(client),
+            name="funding_sources",
+            write_disposition="replace",
+            max_table_nesting=1,
+        )
+
+    return nva
+
+
 @app.command()
 def run(
-    resources: bool = False,
+    no_resources: bool = False,
     projects: bool = False,
     persons: bool = False,
     categories: bool = False,
     funding_sources: bool = False,
     base_url: str = NVA_BASE_URL,
     duckdb_name: str = NVA_DUCKDB_NAME,
-    institution_code: str = NVA_INSTITUION_CODE,
+    institution_code: str = NVA_INSTITUTION_CODE,
+    endpoint_url: str = NVA_ENDPOINT,
+    access_key: str = NVA_ACCESS_KEY,
+    secret_key: str = NVA_SECRET_KEY,
+    bucket: str = NVA_BUCKET,
+    prefix: str = NVA_PREFIX,
+    region: str = NVA_REGION,
 ):
-    source = rest_api_source(
-        {
-            "client": {
-                "base_url": base_url,
-                "paginator": {
-                    "type": "json_link",
-                    "next_url_path": "nextResults",
-                },
-            },
-            "resources": list(
-                filter(
-                    lambda r: r is not None,
-                    [
-                        {
-                            "name": "resources",
-                            "endpoint": {
-                                "path": "search/resources",
-                                "data_selector": "hits",
-                                "params": {
-                                    "institution": institution_code,
-                                },
-                            },
-                        }
-                        if resources
-                        else None,
-                        {
-                            "name": "projects",
-                            "endpoint": {
-                                "path": f"cristin/organization/{institution_code}/projects",  # noqa: E501
-                                "data_selector": "hits",
-                            },
-                        }
-                        if projects
-                        else None,
-                        {
-                            "name": "persons",
-                            "endpoint": {
-                                "path": f"cristin/organization/{institution_code}/persons",  # noqa: E501
-                                "data_selector": "hits",
-                            },
-                        }
-                        if persons
-                        else None,
-                        {
-                            "name": "categories",
-                            "endpoint": {
-                                "path": "cristin/category/project",
-                                "data_selector": "hits",
-                            },
-                        }
-                        if categories
-                        else None,
-                        {
-                            "name": "funding_sources",
-                            "endpoint": {
-                                "path": "cristin/funding-sources",
-                                "data_selector": "hits",
-                            },
-                        }
-                        if funding_sources
-                        else None,
-                    ],
-                )
-            ),
-        }
+    credentials = AwsCredentials(
+        s3_url_style="path",
+        endpoint_url=endpoint_url,
+        aws_secret_access_key=secret_key,
+        aws_access_key_id=access_key,
+        region_name="",
     )
 
     pipeline = dlt.pipeline(
         pipeline_name=duckdb_name,
-        destination="duckdb",
+        destination=filesystem(
+            bucket_url=f"s3://{bucket}/" + prefix,
+            credentials=credentials,
+            layout="{table_name}.{ext}",
+        ),
         dataset_name="main",
+        progress="log",
     )
 
-    log.info(pipeline.run(source))
+    log.info(
+        pipeline.run(
+            nva(
+                base_url=base_url,
+                institution_code=institution_code,
+                no_resources=no_resources,
+                projects=projects,
+                persons=persons,
+                categories=categories,
+                funding_sources=funding_sources,
+            ),
+            write_disposition="replace",
+            loader_file_format="parquet",
+        )
+    )
 
 
 if __name__ == "__main__":
