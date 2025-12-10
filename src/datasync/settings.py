@@ -24,7 +24,7 @@ NVA_ENDPOINT = env("NVA_ENDPOINT", default="")
 NVA_BUCKET = env("NVA_BUCKET", default="")
 NVA_PREFIX = env("NVA_PREFIX", default="nva-test")
 NVA_REGION = env("NVA_REGION", default="us-east-1")
-CRISTIN_DB_PATH = env("CRISTIN_DB_PATH")
+CRISTIN_DB_PATH = env("CRISTIN_DB_PATH", default="")
 
 
 # UBW
