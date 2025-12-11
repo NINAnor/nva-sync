@@ -3,6 +3,7 @@ import orjson
 import typer
 from pygeometa.schemas.iso19139 import ISO19139OutputSchema
 
+from .libs.helpers import get_anytext
 from .settings import log
 
 app = typer.Typer()
@@ -29,6 +30,9 @@ def generate_csw_metadata(
 
     conn = duckdb.connect()
     conn.sql("INSTALL yaml FROM community; LOAD yaml; Install spatial; load spatial")
+
+    conn.create_function("to_iso19139", to_iso19139)
+    conn.create_function("xml_bag", get_anytext)
 
     datasets = conn.read_parquet(base_url + "datasets_dataset.parquet").filter(
         "json_keys(metadata) <> []"
@@ -219,9 +223,11 @@ def generate_csw_metadata(
     )
     log.debug(res)
 
-    conn.create_function("to_iso19139", to_iso19139)
+    iso_xml = res.select("id, to_iso19139(metadata) as xml")
 
-    log.debug(res.select("id, to_iso19139(metadata) as xml"))
+    log.debug(iso_xml)
+
+    log.debug(iso_xml.select("*, xml_bag(xml) as fts_text"))
 
 
 if __name__ == "__main__":
