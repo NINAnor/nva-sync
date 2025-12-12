@@ -353,5 +353,97 @@ def generate_csw_metadata(base_url: str = DMS_DATASETS_BASE, lang="en"):
     csw.write_parquet("dms-metadata.parquet")
 
 
+@app.command()
+def generate_geoapi_config(base_url: str = DMS_DATASETS_BASE, lang="en"):
+    # TODO: localize the output based on the language in input
+
+    conn = duckdb.connect()
+    conn.sql("Install spatial; load spatial")
+
+    datasets = conn.read_parquet(base_url + "datasets_dataset.parquet").filter(
+        "json_keys(metadata) <> []"
+    )
+    log.debug(datasets)
+    rasters = conn.read_parquet(base_url + "datasets_rasterresource.parquet").select(
+        "* replace (ST_GEomFromHEXWKB(extent) as extent), 'raster' as type"
+    )  # noqa: F841
+    vectors = conn.read_parquet(base_url + "datasets_tabularresource.parquet").select(
+        "* replace (ST_GEomFromHEXWKB(extent) as extent), 'vector' as type"
+    )  # noqa: F841
+    datatables = conn.read_parquet(base_url + "datasets_datatable.parquet").select(
+        "* replace (ST_GEomFromHEXWKB(extent) as extent)"
+    )  # noqa: F841
+    log.debug(vectors)
+    log.debug(datatables)
+
+    descriptions_structure = datasets.aggregate(
+        "json_group_structure(metadata->'$.descriptions[*]') as stucture"
+    ).fetchone()[0]
+
+    descriptions = (
+        (
+            rasters.set_alias("r")
+            .join(datasets.set_alias("d"), condition="r.dataset_id = d.id")
+            .select(
+                f"r.id, unnest(json_transform(d.metadata->'$.descriptions[*]', '{descriptions_structure}'), recursive := true)"  # noqa: E501
+            )
+        )
+        .filter(
+            duckdb.ColumnExpression("lang") == duckdb.ConstantExpression(lang),
+        )
+        .aggregate(
+            "id, lang, string_agg('# ' || descriptionType || '\n' || description, '\n') as description"  # noqa: E501
+        )
+    )
+    log.debug(descriptions)
+
+    subjects = (
+        rasters.set_alias("r")
+        .join(datasets.set_alias("d"), condition="r.dataset_id = d.id")
+        .select(
+            """r.id, unnest(json_transform(d.metadata->'$.subjects[*]', '[{"subject": "VARCHAR", "subjectScheme": "VARCHAR", "schemeURI": "VARCHAR", "valueURI": "VARCHAR", "classificationCode": "VARCHAR"}]'), recursive := true)"""  # noqa: E501
+        )
+        .aggregate(
+            "id, array_agg(subject) as keywords"  # noqa: E501
+        )
+    )
+    log.debug(subjects)
+
+    geo_raster = conn.sql("""
+             from rasters as r
+             join datasets as d on d.id = r.dataset_id
+             left join descriptions as descr on descr.id = d.id
+             left join subjects as sbj on sbj.id = d.id
+             select
+                d.id || '/' || r.id as id,
+                'collection' as type,
+                'default' as visibility,
+                d.title || ' - ' || r.title as title,
+                coalesce(sbj.keywords, []) as keywords,
+                coalesce(r.description || '\n' || descr.description, '') as description,
+                {
+                    "spatial": {
+                          bbox: [
+                            ST_XMIN(r.extent), ST_YMIN(r.extent),
+                            ST_XMAX(r.extent), ST_YMAX(r.extent),
+                        ],
+                        crs: 4326
+                    }
+                } as extent,
+                [{
+                    "type": 'coverage',
+                    "default": true,
+                    "name": 'rasterio',
+                    "data": '/vsicurl/' || r.uri,
+                    "format": {
+                        "name": r.metadata->>'$.driverShortName'
+                    }
+                }] as providers
+    """)
+
+    log.debug(geo_raster)
+    conn.sql("copy geo_raster to 'dms-raster.json' (FORMAT json, ARRAY true)")
+
+
 if __name__ == "__main__":
     app()
