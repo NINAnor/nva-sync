@@ -439,6 +439,7 @@ def generate_geoapi_config(base_url: str = DMS_DATASETS_BASE, lang="en"):
                         "name": r.metadata->>'$.driverShortName'
                     }
                 }] as providers
+            where r.extent is not null and r.metadata is not null
     """)
 
     log.debug(geo_raster)
