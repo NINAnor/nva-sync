@@ -35,3 +35,7 @@ UBW_SECRET_KEY = env("UBW_SECRET_KEY", default="")
 UBW_AWS_ENDPOINT = env("UBW_AWS_ENDPOINT", default="")
 UBW_BUCKET = env("UBW_BUCKET", default="")
 UBW_PREFIX = env("UBW_PREFIX", default="")
+
+
+# DMS
+DMS_DATASETS_BASE = env("DMS_DATASETS_BASE", default="")

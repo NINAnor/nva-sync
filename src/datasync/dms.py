@@ -4,7 +4,7 @@ import typer
 from pygeometa.schemas.iso19139 import ISO19139OutputSchema
 
 from .libs.helpers import get_anytext
-from .settings import log
+from .settings import DMS_DATASETS_BASE, log
 
 app = typer.Typer()
 
@@ -13,19 +13,17 @@ iso = ISO19139OutputSchema()
 
 def to_iso19139(metadata: dict) -> str:
     loaded = orjson.loads(metadata)
-    log.debug(loaded, id=loaded.get("identification").get("identifier"))
+    log.debug(loaded, id=loaded.get("identification", {}).get("identifier"))
     try:
         xml = iso.write(loaded)
         return xml
     except Exception as e:
-        log.exception(e, id=loaded.get("identification").get("identifier"))
+        log.exception(e, id=loaded.get("identification", {}).get("identifier"))
         return ""
 
 
 @app.command()
-def generate_csw_metadata(
-    base_url: str = "https://s3-int-1/dms-test/dms/tables/", lang="en"
-):
+def generate_csw_metadata(base_url: str = DMS_DATASETS_BASE, lang="en"):
     # TODO: localize the output based on the language in input
 
     conn = duckdb.connect()
@@ -87,31 +85,58 @@ def generate_csw_metadata(
 
     log.debug(spatial)
 
-    identification = resources.select("""
-        id,
+    descriptions_structure = datasets.aggregate(
+        "json_group_structure(metadata->'$.descriptions[*]') as stucture"
+    ).fetchone()[0]
+
+    log.debug("Generated schema of abstract", structure=descriptions_structure)
+
+    descriptions = (
+        resources.set_alias("r")
+        .join(datasets.set_alias("d"), condition="r.dataset_id = d.id")
+        .select(
+            f"r.id, unnest(json_transform(d.metadata->'$.descriptions[*]', '{descriptions_structure}'), recursive := true)"  # noqa: E501
+        )
+    )
+    log.debug(descriptions)
+
+    abstracts = descriptions.filter(
+        (
+            duckdb.ColumnExpression("descriptionType")
+            == duckdb.ConstantExpression("Abstract")
+        )
+        and (duckdb.ColumnExpression("lang") == duckdb.ConstantExpression(lang)),
+    ).aggregate("id, lang, string_agg(description, '\n') as description")
+    log.debug(abstracts)
+
+    identification = conn.sql("""
+    from resources as r
+    join datasets as d on r.dataset_id = d.id
+    left join abstracts as a on a.id = r.id
+    select
+        r.id,
         {
-            identifier: id,
+            identifier: r.id,
             -- TODO: these needs to be read from the dataset
-            language: metadata->'language',
+            language: d.metadata->'$.language',
             -- TODO: these is probably a combination
-            title: title,
+            title: r.title,
             fee: 'None',
             status: 'completed',
             -- TODO: these needs to be read from the dataset
             rights: '',
-            -- TODO: these needs to be read from the dataset
-            abstract: '',
-            url: uri,
+            abstract: a.description,
+            url: r.uri,
             dates: {
-                creation: created_at,
-                revision: last_modified_at
+                creation: r.created_at,
+                revision: r.last_modified_at
             },
             extents: {
-                spatial: case when extent is not null then [
+                spatial: case when r.extent is not null then [
                     {
                         bbox: [
-                            ST_XMIN(extent), ST_YMIN(extent),
-                            ST_XMAX(extent), ST_YMAX(extent),
+                            ST_XMIN(r.extent), ST_YMIN(r.extent),
+                            ST_XMAX(r.extent), ST_YMAX(r.extent),
                         ],
                         crs: 4326
                     }
@@ -126,13 +151,14 @@ def generate_csw_metadata(
             },
             license: {
                 -- need to join with dataset to read those!
-                "name": coalesce(metadata->>'$.rightsList[0].rights', 'All rights reserved'),
-                "uri": coalesce(metadata->>'$.rightsList[0].rightsUri', ''),
+                "name": coalesce('All rights reserved'),
+                "uri": coalesce(''),
             },
             keywords: {
                 "default": {
-                keywords_type: 'theme',
-                keywords: [],
+                    -- need to join with dataset to read those!
+                    keywords_type: 'theme',
+                    keywords: [],
                 }
             },
         }::json as identification
@@ -181,6 +207,13 @@ def generate_csw_metadata(
         )
     )
 
+    contributors_csw = contributions.aggregate(
+        "dataset_id, string_agg(last_name || ', ' || first_name, ';') as contributors",
+        group_expr="dataset_id",
+    )
+
+    log.debug(contributors_csw)
+
     log.debug(contacts)
 
     distribution = resources.select("""
@@ -203,7 +236,8 @@ def generate_csw_metadata(
 
     res = conn.sql(
         """
-            select m.id, {
+            select r.* rename (metadata as res_metadata),
+            {
                 mcf: { version: 1.0 },
                 metadata: m.metadata,
                 identification: i.identification,
@@ -212,22 +246,74 @@ def generate_csw_metadata(
                 distribution: d.distribution,
                 contact: c.contact
             }::json as metadata
-            from metadata as m
+            from resources as r
+            join metadata as m on r.id = m.id
             join identification as i on m.id = i.id
             join content_info as ci on ci.id = m.id
             join spatial as sp on sp.id = m.id
             join distribution as d on d.id = m.id
             join contacts as c on m.dataset_id = c.dataset_id
-
         """
     )
     log.debug(res)
 
-    iso_xml = res.select("id, to_iso19139(metadata) as xml")
+    iso_xml = res.select("*, to_iso19139(metadata) as xml")
 
     log.debug(iso_xml)
 
-    log.debug(iso_xml.select("*, xml_bag(xml) as fts_text"))
+    csw = conn.sql("""
+        select
+            r.id as identifier,
+            'gmd:MD_Metadata' as typename,
+            'http://www.isotc211.org/2005/gmd' as schema,
+            'local' as mdsource,
+            coalesce(
+                strftime(r.created_at, '%Y-%m-%d'),
+                ''
+            ) as insert_date,
+            r.title,
+            coalesce(
+                strftime(r.last_modified_at, '%Y-%m-%d'),
+                ''
+            ) as date_modified,
+            'dataset' as type,
+            null::varchar as format,
+            case
+                when r.extent is not null then ST_AsText(r.extent)
+                else st_makeEnvelope(4.99207807783, 58.0788841824, 31.29341841, 80.6571442736)
+            end as wkt_geometry,
+            r.xml as metadata,
+            r.xml,
+            coalesce(
+                replace(
+                list_aggregate(
+                   r.metadata->'$.identification.keywords.default.keywords[*]',
+                   'string_agg',
+                   ','
+                ), '"', ''),
+                ''
+            ) as keywords,
+            'application/xml' as metadata_type,
+            xml_bag(r.xml) as anytext,
+            coalesce(r.metadata->>'$.identification.abstract', '') as abstract,
+            coalesce(
+                strftime(r.last_modified_at, '%Y-%m-%d'),
+                '',
+            ) as date,
+            'Norsk institutt for naturforskning' as creator,
+            'Norsk institutt for naturforskning' as publisher,
+            coalesce(c.contributors, '') as contributor,
+            ([{
+                name: r.title,
+                url: r.uri,
+                description: r.description,
+                protocol: r.metadata->>'$.distribution.file.type'
+            }]::json)::varchar as links
+        from iso_xml as r
+        left join contributors_csw as c on c.dataset_id = r.dataset_id
+    """)  # noqa: E501
+
+    log.debug(csw)
 
 
 if __name__ == "__main__":
