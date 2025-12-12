@@ -109,23 +109,59 @@ def generate_csw_metadata(base_url: str = DMS_DATASETS_BASE, lang="en"):
     ).aggregate("id, lang, string_agg(description, '\n') as description")
     log.debug(abstracts)
 
+    licenses = (
+        resources.set_alias("r")
+        .join(datasets.set_alias("d"), condition="r.dataset_id = d.id")
+        .select(
+            """r.id, unnest(json_transform(d.metadata->'$.rightsList[*]', '[{"lang": "VARCHAR", "rights": "VARCHAR", "rightsURI": "VARCHAR", "rightsIdentifier": "VARCHAR", "schemeUri": "VARCHAR"}]'), recursive := true)"""  # noqa: E501
+        )
+        .filter(duckdb.ColumnExpression("lang") == duckdb.ConstantExpression(lang))
+        .aggregate("id, lang, first(rights) as rights, first(rightsURI) as url")
+    )
+    log.debug(licenses)
+
+    subjects = (
+        resources.set_alias("r")
+        .join(datasets.set_alias("d"), condition="r.dataset_id = d.id")
+        .select(
+            """r.id, unnest(json_transform(d.metadata->'$.subjects[*]', '[{"subject": "VARCHAR", "subjectScheme": "VARCHAR", "schemeURI": "VARCHAR", "valueURI": "VARCHAR", "classificationCode": "VARCHAR"}]'), recursive := true)"""  # noqa: E501
+        )
+        .aggregate(
+            "id, array_agg(subject) as keywords, subjectScheme as scheme_name, schemeURI as url"  # noqa: E501
+        )
+        .aggregate(
+            """id,
+            json_group_object(
+                coalesce(scheme_name, 'default'),
+                case when url is not null then
+                {"keywords_type": 'theme', "keywords": keywords, "vocabulary": {
+                    "name": scheme_name, "url": url
+                },}
+                else
+                {"keywords_type": 'theme', "keywords": keywords }
+                end
+            ) as keywords
+            """
+        )
+    )
+    log.debug(subjects)
+
     identification = conn.sql("""
     from resources as r
     join datasets as d on r.dataset_id = d.id
     left join abstracts as a on a.id = r.id
+    left join licenses as l on l.id = r.id
+    left join subjects as s on s.id = r.id
     select
         r.id,
         {
             identifier: r.id,
-            -- TODO: these needs to be read from the dataset
             language: d.metadata->'$.language',
-            -- TODO: these is probably a combination
-            title: r.title,
+            title: d.title || ' - ' || r.title,
             fee: 'None',
             status: 'completed',
-            -- TODO: these needs to be read from the dataset
-            rights: '',
-            abstract: a.description,
+            rights: l.rights,
+            abstract: a.description || '\n' || r.description,
             url: r.uri,
             dates: {
                 creation: r.created_at,
@@ -150,17 +186,16 @@ def generate_csw_metadata(base_url: str = DMS_DATASETS_BASE, lang="en"):
                 end
             },
             license: {
-                -- need to join with dataset to read those!
-                "name": coalesce('All rights reserved'),
-                "uri": coalesce(''),
+                "name": coalesce(l.rights, 'All rights reserved'),
+                "uri": coalesce(l.url, ''),
             },
-            keywords: {
+            keywords: coalesce(s.keywords, {
                 "default": {
                     -- need to join with dataset to read those!
                     keywords_type: 'theme',
                     keywords: [],
                 }
-            },
+            }),
         }::json as identification
     """)  # noqa: E501
 
@@ -221,7 +256,7 @@ def generate_csw_metadata(base_url: str = DMS_DATASETS_BASE, lang="en"):
         {
             file: {
                 url: uri,
-                type: case when type = 'raster' then 'FILE:RASTER'
+                type: case when type = 'raster' then 'FILE:GEO'
                         when type = 'vector' then 'FILE:GEO'
                         else 'download'
                 end,
@@ -271,17 +306,17 @@ def generate_csw_metadata(base_url: str = DMS_DATASETS_BASE, lang="en"):
                 strftime(r.created_at, '%Y-%m-%d'),
                 ''
             ) as insert_date,
-            r.title,
+            r.metadata->>'$.identification.title' as title,
             coalesce(
                 strftime(r.last_modified_at, '%Y-%m-%d'),
                 ''
             ) as date_modified,
             'dataset' as type,
             null::varchar as format,
-            case
-                when r.extent is not null then ST_AsText(r.extent)
+            ST_AsText(case
+                when r.extent is not null then r.extent
                 else st_makeEnvelope(4.99207807783, 58.0788841824, 31.29341841, 80.6571442736)
-            end as wkt_geometry,
+            end) as wkt_geometry,
             r.xml as metadata,
             r.xml,
             coalesce(
@@ -314,6 +349,8 @@ def generate_csw_metadata(base_url: str = DMS_DATASETS_BASE, lang="en"):
     """)  # noqa: E501
 
     log.debug(csw)
+
+    csw.write_parquet("dms-metadata.parquet")
 
 
 if __name__ == "__main__":
